@@ -14,10 +14,10 @@ async function testLeaderboard() {
   // Create some transactions from the last 2 days
   await prisma.transaction.createMany({
     data: [
-      { walletAddress: addresses[0], volumeUSD: 500.5, type: "PURCHASE", createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24) },
-      { walletAddress: addresses[0], volumeUSD: 250.0, type: "MINT", createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 12) },
-      { walletAddress: addresses[1], volumeUSD: 1000.0, type: "PURCHASE", createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 5) },
-      { walletAddress: addresses[2], volumeUSD: 100.0, type: "MINT", createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 48) },
+      { walletAddress: addresses[0], volumeUSD: 500.5, type: "PURCHASE", txHash: "tx1", eventIndex: 0, ledger: 100, createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24) },
+      { walletAddress: addresses[0], volumeUSD: 250.0, type: "MINT", txHash: "tx2", eventIndex: 0, ledger: 101, createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 12) },
+      { walletAddress: addresses[1], volumeUSD: 1000.0, type: "PURCHASE", txHash: "tx3", eventIndex: 0, ledger: 102, createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 5) },
+      { walletAddress: addresses[2], volumeUSD: 100.0, type: "MINT", txHash: "tx4", eventIndex: 0, ledger: 103, createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 48) },
     ],
   });
 
@@ -27,6 +27,9 @@ async function testLeaderboard() {
       walletAddress: addresses[0],
       volumeUSD: 5000.0,
       type: "PURCHASE",
+      txHash: "tx5",
+      eventIndex: 0,
+      ledger: 90,
       createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 8),
     },
   });

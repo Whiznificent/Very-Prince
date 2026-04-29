@@ -199,12 +199,15 @@ export class IndexerService {
     // Extract wallet address and amount based on event type
     let walletAddress = '';
     let volumeUSD = BigInt(0);
+    const createdAt = new Date(event.ledgerClosedAt);
 
     switch (event.eventName) {
       case 'PayoutAllocated': {
         const payoutEvent = event as PayoutAllocatedEvent;
         walletAddress = payoutEvent.maintainer;
         volumeUSD = BigInt(payoutEvent.amount);
+        
+        // SSE Event
         emitSSEEvent('payout_allocated', {
           orgId: payoutEvent.orgId,
           maintainer: payoutEvent.maintainer,
@@ -212,6 +215,19 @@ export class IndexerService {
           amountXlm: stroopsToXlm(payoutEvent.amount),
           ledger: payoutEvent.ledger,
           txHash: payoutEvent.txHash,
+        });
+
+        // Store specific PayoutEvent for analytics
+        await prisma.payoutEvent.create({
+          data: {
+            orgId: payoutEvent.orgId,
+            maintainer: payoutEvent.maintainer,
+            amountStroops: BigInt(payoutEvent.amount),
+            amountXlm: stroopsToXlm(payoutEvent.amount),
+            ledger: payoutEvent.ledger,
+            txHash: payoutEvent.txHash,
+            createdAt,
+          }
         });
         break;
       }
@@ -310,17 +326,17 @@ export class IndexerService {
     }
 
     // Idempotent upsert: prevents duplicate records if the same event is processed twice
-    // The unique constraint on (txHash, eventIndex) ensures this
+    // The unique constraint on (txHash, eventIndex, createdAt) ensures this
     await prisma.transaction.upsert({
       where: {
-        txHash_eventIndex: {
+        txHash_eventIndex_createdAt: {
           txHash: event.txHash,
           eventIndex,
+          createdAt,
         },
       },
       update: {
         // On update: don't change anything (event already recorded)
-        // This ensures idempotency - reprocessing doesn't mutate data
       },
       create: {
         txHash: event.txHash,
@@ -330,6 +346,7 @@ export class IndexerService {
         type: event.eventName,
         ledger: event.ledger,
         rawData: JSON.stringify(event),
+        createdAt,
       },
     });
   }

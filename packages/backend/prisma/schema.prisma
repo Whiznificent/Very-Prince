@@ -21,21 +21,38 @@ model Organization {
 }
 
 model Transaction {
-  id            String   @id @default(cuid())
+  id            String   @default(cuid())
   txHash        String   // Blockchain transaction hash
   eventIndex    Int      // Index of the event within the transaction
   walletAddress String
   volumeUSD     Decimal
-  createdAt     DateTime @default(now())
+  createdAt     DateTime // Explicitly set to ledger closure time for partitioning
   type          String   // e.g., "PAYOUT_ALLOCATED", "ORG_FUNDED", "PAYOUT_CLAIMED"
   ledger        Int      // Ledger sequence number
   rawData       String?  // JSON-encoded raw event data for debugging
 
-  @@unique([txHash, eventIndex]) // Prevents duplicate processing
+  @@id([id, createdAt])
+  @@unique([txHash, eventIndex, createdAt]) // Required for partitioning
   @@index([createdAt])
   @@index([walletAddress])
   @@index([txHash])
   @@index([ledger])
+}
+
+model PayoutEvent {
+  id            String   @default(cuid())
+  orgId         String
+  maintainer    String
+  amountStroops BigInt
+  amountXlm     Decimal
+  ledger        Int
+  txHash        String
+  createdAt     DateTime // Partition key
+
+  @@id([id, createdAt])
+  @@index([orgId])
+  @@index([maintainer])
+  @@index([createdAt])
 }
 
 model IndexerState {
