@@ -13,6 +13,7 @@ import { stellarService } from './stellarService.js';
 import { prisma } from './db.js';
 import { emitSSEEvent } from '../routes/events.js';
 import { webhookService } from './webhookService.js';
+import { createLogger } from '../utils/logger.js';
 import {
   decodeSorobanEvent,
   parseContractEvent,
@@ -23,6 +24,8 @@ import {
   type PayoutClaimedEvent,
   type MaintainerAddedEvent,
 } from '../utils/xdrDecoder.js';
+
+const log = createLogger('IndexerService');
 
 
 
@@ -36,15 +39,15 @@ export class IndexerService {
    */
   start(): void {
     if (this.isRunning) {
-      console.log('Indexer is already running');
+      log.info('Indexer is already running');
       return;
     }
 
     // Get cron expression from environment or use default (every 5 minutes)
     const cronExpression = process.env.INDEXER_CRON_EXPRESSION || '*/5 * * * *';
 
-    console.log(`Starting indexer with cron expression: ${cronExpression}`);
-    console.log('Syncing Blockchain Data...');
+    log.info({ cronExpression }, 'Starting indexer');
+    log.info('Syncing Blockchain Data...');
 
     this.cronJob = cron.schedule(cronExpression, async () => {
       await this.syncBlockchainData();
@@ -53,7 +56,7 @@ export class IndexerService {
     });
 
     this.isRunning = true;
-    console.log('Indexer started successfully');
+    log.info('Indexer started successfully');
   }
 
   /**
@@ -65,7 +68,7 @@ export class IndexerService {
       this.cronJob = null;
     }
     this.isRunning = false;
-    console.log('Indexer stopped');
+    log.info('Indexer stopped');
   }
 
   /**
@@ -77,7 +80,7 @@ export class IndexerService {
     });
 
     if (!state) {
-      console.log(`No existing cursor found. Initializing with DEPLOYMENT_LEDGER: ${DEPLOYMENT_LEDGER}`);
+      log.info({ deploymentLedger: DEPLOYMENT_LEDGER }, 'No existing cursor found, initializing with DEPLOYMENT_LEDGER');
       return DEPLOYMENT_LEDGER;
     }
 
@@ -91,21 +94,21 @@ export class IndexerService {
    */
   private async syncBlockchainData(): Promise<void> {
     try {
-      console.log('Starting blockchain data sync...');
+      log.info('Starting blockchain data sync');
 
       if (!CONTRACT_ID) {
-        console.warn('No CONTRACT_ID configured, skipping sync');
+        log.warn('No CONTRACT_ID configured, skipping sync');
         return;
       }
 
       const lastProcessedLedger = await this.getCursor();
-      console.log(`Indexing from ledger: ${lastProcessedLedger + 1}`);
+      log.info({ fromLedger: lastProcessedLedger + 1 }, 'Indexing from ledger');
 
       // Fetch new events
       const eventsResponse = await stellarService.getEvents(lastProcessedLedger + 1);
 
       if (eventsResponse.events && eventsResponse.events.length > 0) {
-        console.log(`Processing ${eventsResponse.events.length} new events...`);
+        log.info({ eventCount: eventsResponse.events.length }, 'Processing new events');
 
         // Process each event with idempotent database writes
 
@@ -122,19 +125,19 @@ export class IndexerService {
             const contractEvent = parseContractEvent(decodedEvent);
 
             if (!contractEvent) {
-              console.warn(`Unknown event type: ${decodedEvent.eventName}`);
+              log.warn({ eventName: decodedEvent.eventName }, 'Unknown event type, skipping');
               continue;
             }
 
             // Extract event index for unique composite key
             const eventIndex = i; // Use array index as event index within this batch
 
-            console.log(`Processing event: ${contractEvent.eventName}`);
+            log.debug({ eventName: contractEvent.eventName, ledger: contractEvent.ledger }, 'Processing contract event');
 
             // Handle each event type and emit appropriate SSE events
             await this.handleContractEvent(contractEvent, eventIndex);
           } catch (error) {
-            console.error('Error processing event for SSE:', error);
+            log.error({ err: error }, 'Error processing event');
           }
         }
 
@@ -151,15 +154,15 @@ export class IndexerService {
           });
         });
 
-        console.log(`Successfully processed events up to ledger ${latestLedger}`);
+        log.info({ latestLedger }, 'Successfully processed events up to ledger');
       } else {
-        console.log('No new events found');
+        log.debug('No new events found');
       }
 
-      console.log('Blockchain data sync completed successfully');
+      log.info('Blockchain data sync completed successfully');
 
     } catch (error) {
-      console.error('Error during blockchain data sync:', error);
+      log.error({ err: error }, 'Error during blockchain data sync');
     }
   }
 
@@ -371,7 +374,7 @@ export class IndexerService {
    * Manually trigger a sync (useful for testing or immediate updates)
    */
   async triggerSync(): Promise<void> {
-    console.log('Manual sync triggered');
+    log.info('Manual sync triggered');
     await this.syncBlockchainData();
   }
 }

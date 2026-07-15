@@ -68,7 +68,10 @@ import {
 } from "../config/env.js";
 import { withRetry } from "../utils/retry.js";
 import { decodeI128ToBigInt, stroopsToXlm } from "../utils/xdrDecoder.js";
+import { createLogger } from "../utils/logger.js";
 import type { AccountInfo, ContractCallResult, PayoutEvent, ProfileStats } from "@very-prince/types";
+
+const log = createLogger('StellarService');
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -112,9 +115,12 @@ export class StellarService {
     return withRetry(fn, {
       onRetry: (_, attempt) => {
         if (attempt >= 3) {
-          console.error(`[CRITICAL] High-priority: Rate limit backoff exceeded 3 times! (Attempt ${attempt})`);
+          log.error(
+            { attempt },
+            '[CRITICAL] High-priority: Rate limit backoff exceeded 3 times!'
+          );
         } else {
-          console.warn(`[Stellar] Rate limited. Retrying... (Attempt ${attempt})`);
+          log.warn({ attempt }, '[Stellar] Rate limited, retrying');
         }
       }
     });
@@ -383,7 +389,7 @@ export class StellarService {
         // This could include total organizations, total budgets, etc.
       };
     } catch (error) {
-      console.error('Error fetching contract state:', error);
+      log.error({ err: error, contractId }, 'Error fetching contract state');
       throw error;
     }
   }

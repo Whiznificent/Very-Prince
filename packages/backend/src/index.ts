@@ -41,6 +41,7 @@ import { indexerService } from "./services/indexerService.js";
 import { notificationController } from "./controllers/notificationController.js";
 import { configureTRPC } from "./trpc/server.js";
 import { webhookWorker } from "./workers/WebhookWorker.js";
+import { rootLogger } from "./utils/logger.js";
 
 // Sentry initialization
 import * as Sentry from "@sentry/node";
@@ -60,15 +61,12 @@ if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
 
 // ─── Server Setup ─────────────────────────────────────────────────────────────
 
+// Pass the shared root Pino logger directly to Fastify so that Fastify's
+// request/response logging and our application logs share a single pipeline
+// (same level, transport, and serializers).
 const server = Fastify({
-  logger: {
-    level: process.env["NODE_ENV"] === "production" ? "warn" : "info",
-    transport:
-      process.env["NODE_ENV"] !== "production"
-        ? { target: "pino-pretty", options: { colorize: true } }
-        : undefined,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any,
+  logger: rootLogger as any,
 });
 
 // ─── Plugin Registration ──────────────────────────────────────────────────────
