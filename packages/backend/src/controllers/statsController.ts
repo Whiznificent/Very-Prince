@@ -9,30 +9,12 @@
 import { stellarService } from "../services/stellarService.js";
 import { safeGet, safeSet } from "../services/cache.js";
 import { prisma } from "../services/db.js";
-
-export interface GlobalStatsResponse {
-  /** Number of registered organizations on-chain. */
-  totalOrganizations: number;
-  /** Sum of all org budgets currently held in the contract (stroops). */
-  totalFundedStroops: string;
-  /** Same value expressed in whole XLM. */
-  totalFundedXlm: string;
-  /** Sum of all maintainer claimable balances (stroops). */
-  totalClaimedStroops: string;
-  /** Same value expressed in whole XLM. */
-  totalClaimedXlm: string;
-  /** ISO timestamp of when this result was computed. */
-  cachedAt: string;
-  /** ISO timestamp of when the cache will expire. */
-  cacheExpiresAt: string;
-}
-
-export interface TopMaintainer {
-  address: string;
-  totalEarningsXlm: string;
-  totalEarningsStroops: string;
-  organizationsAssisted: number;
-}
+import type {
+  GlobalStatsResponse,
+  TVLResponse,
+  FundsRaisedResponse,
+  TopMaintainer,
+} from "@very-prince/types";
 
 function stroopsToXlm(stroops: bigint): string {
   return (Number(stroops) / 10_000_000).toFixed(7);
