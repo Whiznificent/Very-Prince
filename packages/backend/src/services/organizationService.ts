@@ -1,4 +1,4 @@
-﻿import { organizationRepository } from "../repositories/OrganizationRepository.js";
+import { organizationRepository } from "../repositories/OrganizationRepository.js";
 import { stellarService } from "../services/stellarService.js";
 import { redis } from "../services/cache.js";
 import type { PaginatedOrgsResponse } from "@very-prince/types";
@@ -80,19 +80,40 @@ export class OrganizationService {
       // Invalidate the first page cache
       const cacheKey = "orgs:page:1:limit:10";
       await redis.del(cacheKey);
+
+      // Invalidate the organization cache
+      await redis.del(`org:${id}`);
     }
 
     return result;
   }
 
   async getOrganization(orgId: string) {
+    const cacheKey = `org:${orgId}`;
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.error(`Redis error in getOrganization for key ${cacheKey}:`, error);
+    }
+
     const org = await stellarService.readOrganization(orgId);
-    return {
+    const orgDetails = {
       id: String(org["id"]),
       name: String(org["name"]),
       admin: String(org["admin"]),
       metadataCid: org["metadata_cid"] ? String(org["metadata_cid"]) : undefined,
     };
+
+    try {
+      await redis.set(cacheKey, JSON.stringify(orgDetails), "EX", 300);
+    } catch (error) {
+      console.error(`Redis set error in getOrganization for key ${cacheKey}:`, error);
+    }
+
+    return orgDetails;
   }
 
   async getMaintainers(orgId: string) {

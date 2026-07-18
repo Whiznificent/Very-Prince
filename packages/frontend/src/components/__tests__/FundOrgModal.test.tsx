@@ -7,11 +7,7 @@ import { FundOrgModal } from "../FundOrgModal";
 const mockFundOrg = vi.fn();
 
 vi.mock("@/hooks/useFundOrg", () => ({
-  useFundOrg: () => ({
-    fundOrg: mockFundOrg,
-    isSubmitting: false,
-    error: null,
-  }),
+  useFundOrg: (options?: { onProgress?: (step: string) => void }) => mockUseFundOrg(options),
 }));
 
 let mockWalletIsConnected = true;
